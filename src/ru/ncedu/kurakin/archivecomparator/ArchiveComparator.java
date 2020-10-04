@@ -35,8 +35,6 @@ public class ArchiveComparator implements IArchiveComparator {
                 zip.close();
                 input.close();
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -46,59 +44,92 @@ public class ArchiveComparator implements IArchiveComparator {
     public void getReport(String filePath1, String filePath2) {
         loadFiles(filePath1, filePath2);
         String header = String.format("%20s | %20s \r\n", fileNames[0], fileNames[1]);
+        try {
+            OutputStream output = new FileOutputStream(reportFpath);
+            output.write(header.getBytes());
+            output.write("---------------------+-------------------\r\n".getBytes());
+            saveRepToFile(output);
+            output.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveRepToFile(OutputStream output) {
+        ArrayList<ZipEntry> arr1 = zipFiles.get(0);
+        ArrayList<ZipEntry> arr2 = zipFiles.get(1);
         ArrayList<Integer> arr2IndexesContains = new ArrayList<>();
         ArrayList<Integer> arr2Indexes = new ArrayList<>(zipFiles.get(1).size());
         for (int i = 0; i < zipFiles.get(1).size(); i++) {
             arr2Indexes.add(i);
         }
-        try {
-            OutputStream output = new FileOutputStream(reportFpath);
-            output.write(header.getBytes());
-            output.write("---------------------+-------------------\r\n".getBytes());
-            ArrayList<ZipEntry> arr1 = zipFiles.get(0);
-            ArrayList<ZipEntry> arr2 = zipFiles.get(1);
-            String toWrite;
-            for (int i = 0; i < arr1.size(); i++) {
-                boolean found = false;
-                for (int j = 0; j < arr2.size(); j++) {
-                    if (arr1.get(i).getName().equals(arr2.get(j).getName())) {
-                        if (arr1.get(i).getSize() != arr2.get(j).getSize()) {
-                            toWrite = String.format("%20s | %20s\r\n", "updated " +
-                                    arr1.get(i).getName(), "updated " + arr2.get(j).getName());
-                            output.write(toWrite.getBytes());
-                        }
-                        found = true;
-                        if (!arr2IndexesContains.contains(new Integer(j))) {
-                            arr2IndexesContains.add(j);
-                        }
-                    } else if (arr1.get(i).getSize() == arr2.get(j).getSize()) {
-                        if (!arr1.get(i).getName().equals(arr2.get(j).getName())) {
-                            toWrite = String.format("%20s | %20s\r\n", "renamed " +
-                                    arr1.get(i).getName(), "renamed " + arr2.get(j).getName());
-                            output.write(toWrite.getBytes());
-                        }
-                        found = true;
-                        if (!arr2IndexesContains.contains(new Integer(j))) {
-                            arr2IndexesContains.add(j);
-                        }
+        for (int i = 0; i < arr1.size(); i++) {
+            boolean found = false;
+            for (int j = 0; j < arr2.size(); j++) {
+                if (arr1.get(i).getName().equals(arr2.get(j).getName())) {
+                    if (arr1.get(i).getSize() != arr2.get(j).getSize()) {
+                        updateFilesWriteRep(i, j, output);
+                    }
+                    found = true;
+                    if (!arr2IndexesContains.contains(new Integer(j))) {
+                        arr2IndexesContains.add(j);
+                    }
+                } else if (arr1.get(i).getSize() == arr2.get(j).getSize()) {
+                    if (!arr1.get(i).getName().equals(arr2.get(j).getName())) {
+                        renamedFilesWriteRep(i, j, output);
+                    }
+                    found = true;
+                    if (!arr2IndexesContains.contains(new Integer(j))) {
+                        arr2IndexesContains.add(j);
                     }
                 }
-                if (found == false) {
-                    toWrite = String.format("%20s | %20s\r\n", "deleted " +
-                            arr1.get(i).getName(), "");
-                    output.write(toWrite.getBytes());
-                }
             }
-            for (int i = 0; i < arr2IndexesContains.size(); i++) {
-                arr2Indexes.remove(arr2IndexesContains.get(i));
+            if (!found) {
+                deletedFilesWriteRep(i, output);
             }
+        }
+        newFilesWriteRep(arr2Indexes, arr2IndexesContains, output);
+    }
+
+    private void newFilesWriteRep(ArrayList<Integer> arr2Indexes, ArrayList<Integer> arr2IndexesContains, OutputStream output) {
+        for (int i = 0; i < arr2IndexesContains.size(); i++) {
+            arr2Indexes.remove(arr2IndexesContains.get(i));
+        }
+        try {
             for (int i : arr2Indexes) {
-                toWrite = String.format("%20s | %20s\r\n", "", "newFile " + arr2.get(i).getName());
+                String toWrite = String.format("%20s | %20s\r\n", "", "newFile " + zipFiles.get(1).get(i).getName());
                 output.write(toWrite.getBytes());
             }
-            output.close();
-        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void updateFilesWriteRep(int i, int j, OutputStream output) {
+        String toWrite = String.format("%20s | %20s\r\n", "updated " +
+                zipFiles.get(0).get(i).getName(), "updated " + zipFiles.get(1).get(j).getName());
+        try {
+            output.write(toWrite.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void renamedFilesWriteRep(int i, int j, OutputStream output) {
+        String toWrite = String.format("%20s | %20s\r\n", "renamed " +
+                zipFiles.get(0).get(i).getName(), "renamed " + zipFiles.get(0).get(j).getName());
+        try {
+            output.write(toWrite.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deletedFilesWriteRep(int i, OutputStream output) {
+      String toWrite = String.format("%20s | %20s\r\n", "deleted " +
+                zipFiles.get(0).get(i).getName(), "");
+        try {
+            output.write(toWrite.getBytes());
         } catch (IOException e) {
             e.printStackTrace();
         }

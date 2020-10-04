@@ -8,7 +8,6 @@ public class Main {
         IArchiveComparator ar = new ArchiveComparator();
         String fp1 = ".\\zips\\zip1.zip";
         String fp2 = ".\\zips\\zip2.zip";
-//        ar.loadFiles(fp1, fp2);
-        ar.getReport(fp1,fp2);
+        ar.getReport(fp1, fp2);
     }
 }
